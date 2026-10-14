@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+
+# frontend build (python start.py / npm run build regenerates it)
+dupfinder/web/
+
+# desktop app package (python build_app.py)
+build/
+dist/
+*.spec
+DupFinder-*.zip
+
+# backups and logs
+*.bak
+*.log
+*.tmp
+
+# editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# local environment
+.env
+.env.*
