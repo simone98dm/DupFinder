@@ -100,9 +100,11 @@ The result is a single executable: double-click it. Node.js is needed only to bu
 
 ### From the sources
 
-Requirements: **Python 3.8+**; Node.js to build the interface.
+Requirements: **Python 3.8+**; Node.js 20.19+ to build the interface. Step-by-step instructions for every OS,
+system packages and troubleshooting: **[SETUP.md](SETUP.md)**.
 
 ```bash
+scripts/run.sh                     # macOS / Linux: creates .venv with the extras, builds and opens DupFinder
 python start.py                    # builds the interface and opens DupFinder
 python start.py D:\Photos E:\      # and starts a scan of these folders right away
 python -m dupfinder --admin        # Windows: start as administrator

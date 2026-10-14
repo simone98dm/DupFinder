@@ -22,6 +22,9 @@ python -m dupfinder --browser             # force browser mode;  --no-browser: b
 python -m dupfinder --admin               # Windows: relaunch elevated (UAC)
 cd frontend && npm run dev                # development with hot reload: backend started with --no-browser on :8765
 python build_app.py [--onedir]            # PyInstaller package → dist/DupFinder.exe (tested: ~21 MB, opens the window)
+scripts/run.sh [args] / scripts/build.sh  # macOS/Linux: .venv with extras (Linux: pywebview[qt]) + start.py / build_app.py --onedir
+                                          # tested in Docker (Debian 12, Node 22): server 200, 30 tests OK, Linux build ~511 MB
+# full setup per OS: SETUP.md
 pip install -e .[all]  →  dupfinder ...   # optional: installs the command with pywebview, Pillow, send2trash
 python -m unittest                        # tests
 ```

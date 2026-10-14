@@ -36,3 +36,6 @@ desktop.ini
 # local environment
 .env
 .env.*
+
+# local tool output (design critiques, AI assistants)
+.impeccable/
