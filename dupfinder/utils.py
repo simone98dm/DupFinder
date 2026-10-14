@@ -244,8 +244,19 @@ def describe_os_error(e: BaseException) -> str:
     return str(e)
 
 
+def long_path(path) -> str:
+    r"""Windows: the \\?\ form of a path, so paths over 260 characters work without the
+    system-wide LongPathsEnabled switch (quarantine nests the whole original path). Elsewhere: unchanged."""
+    p = os.fspath(path)
+    if not IS_WIN or p.startswith("\\\\?\\"):
+        return p
+    p = os.path.abspath(p)
+    return "\\\\?\\UNC\\" + p[2:] if p.startswith("\\\\") else "\\\\?\\" + p
+
+
 def remove_file(path: str) -> None:
     """os.remove that also clears the Windows read-only attribute when it is in the way."""
+    path = long_path(path)
     try:
         os.remove(path)
     except PermissionError:
@@ -256,7 +267,8 @@ def remove_file(path: str) -> None:
 
 
 def move_file(src: str, dest: str) -> None:
-    """shutil.move that copes with read-only files on Windows (moving across drives deletes the source)."""
+    """shutil.move that copes with read-only files and long paths on Windows (moving across drives deletes the source)."""
+    src, dest = long_path(src), long_path(dest)
     try:
         shutil.move(src, dest)
     except PermissionError:

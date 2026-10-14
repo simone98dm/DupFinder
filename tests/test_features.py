@@ -75,6 +75,24 @@ class QuarantineTest(Isolated):
         self.assertEqual(a.read_bytes(), data)
         self.assertEqual(quarantine.sessions(), [])
 
+    def test_quarantine_deep_path(self):
+        # source just under 260 characters: its copy inside the quarantine session goes past it
+        free = 240 - len(str(self.root / "data")) - len("\\x.bin")
+        deep = "/".join(["d" * 40] * (free // 41))
+        data = os.urandom(2000)
+        a = self.write(deep + "/x.bin", data)
+        self.write("b/x.bin", data)
+        s = self.scan()
+        fid = next(f["id"] for f in s.results()["groups"][0]["files"] if f["path"] == str(a))
+        r = s.delete([fid], "quarantine")
+        self.assertEqual(r["errors"], [])
+        self.assertGreater(len(r["quarantine_dir"]) + len(str(a)), 260)
+        sess = quarantine.sessions()
+        self.assertEqual(sess[0]["files"][0]["original"], str(a))
+        self.assertEqual(quarantine.restore(sess[0]["id"])["restored"], [str(a)])
+        self.assertEqual(a.read_bytes(), data)
+        self.assertEqual(quarantine.sessions(), [])
+
     def test_purge(self):
         data = os.urandom(3000)
         self.write("a/x.bin", data)

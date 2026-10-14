@@ -47,8 +47,8 @@ function Session({ s, busy, run, toast }) {
       <div className="panel-head">
         <button className="icon-btn" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? 'Collapse' : 'Expand'}>
           <Caret size={14} className={'caret' + (open ? ' open' : '')} /></button>
-        <h3 className="panel-title grow">{s.name.replace('_', ' ').replace(/-(\d\d)-(\d\d)$/, ':$1:$2')}
-          <span className="muted small"> · {plural(s.files.length, 'file')} · {fmtSize(s.bytes)}</span></h3>
+        <h2 className="panel-title grow">{s.name.replace('_', ' ').replace(/-(\d\d)-(\d\d)$/, ':$1:$2')}
+          <span className="muted small"> · {plural(s.files.length, 'file')} · {fmtSize(s.bytes)}</span></h2>
         <button className="icon-btn" onClick={() => api('/api/reveal_path', { path: s.dir }).catch(e => toast(e.message))} title="Show in folder" aria-label="Show in folder"><Open size={14} /></button>
         <button className="btn keep-em sm" disabled={busy} onClick={() => run('/api/quarantine/restore', { id: s.id }, 'restore')}>Restore all</button>
         <button className="btn drop sm" disabled={busy} onClick={() => {

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from . import config
 from .config import IS_WIN
-from .utils import describe_os_error, is_disk_full, move_file
+from .utils import describe_os_error, is_disk_full, long_path, move_file
 
 MANIFEST = "manifest.json"
 _SESSION_RE = re.compile(r"^[\w.-]+$")
@@ -70,10 +70,11 @@ def _files(d: Path) -> list[dict]:
     """The files still in a session, with their original path."""
     by_stored = {e["stored"]: e for e in _load(d / MANIFEST) if "stored" in e}
     out = []
-    for dp, _, fns in os.walk(d):
+    root = long_path(d)                  # stored paths can be longer than 260 characters
+    for dp, _, fns in os.walk(root):
         for fn in fns:
             p = os.path.join(dp, fn)
-            rel = os.path.relpath(p, d)
+            rel = os.path.relpath(p, root)
             if rel == MANIFEST:
                 continue
             e = by_stored.get(rel)
@@ -114,7 +115,7 @@ def restore(sid: str, stored: list[str] | None = None) -> dict:
             errors.append({"path": f["original"], "error": "A file already exists there: not overwritten"})
             continue
         try:
-            os.makedirs(os.path.dirname(f["original"]), exist_ok=True)
+            os.makedirs(long_path(os.path.dirname(f["original"])), exist_ok=True)
             move_file(src, f["original"])
             restored.append(f["original"])
         except OSError as e:
@@ -134,15 +135,16 @@ def purge(sid: str) -> dict:
     def on_err(fn, p, exc) -> None:     # exc is the exception (onexc) or exc_info (onerror)
         errors.append({"path": p, "error": describe_os_error(exc if isinstance(exc, BaseException) else exc[1])})
 
-    shutil.rmtree(d, **({"onexc": on_err} if sys.version_info >= (3, 12) else {"onerror": on_err}))
+    shutil.rmtree(long_path(d), **({"onexc": on_err} if sys.version_info >= (3, 12) else {"onerror": on_err}))
     return {"freed": freed if not errors else 0, "errors": errors}
 
 
 def _prune(d: Path) -> None:
     """Removes the empty folders left by a restore (and the session, once empty)."""
-    for dp, _, _ in sorted(os.walk(d), key=lambda t: len(t[0]), reverse=True):
+    root = long_path(d)
+    for dp, _, _ in sorted(os.walk(root), key=lambda t: len(t[0]), reverse=True):
         try:
-            if os.listdir(dp) == [MANIFEST] and Path(dp) == d:
+            if os.listdir(dp) == [MANIFEST] and dp == root:
                 os.remove(os.path.join(dp, MANIFEST))
             os.rmdir(dp)
         except OSError:

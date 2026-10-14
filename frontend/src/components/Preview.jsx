@@ -23,6 +23,6 @@ export default function Preview({ id, path, set = 'dup', className = '' }) {
   if (!previewable(path)) return null;
   if (err) return <div className={'preview muted small ' + className}>{err}</div>;
   if (!p) return <div className={'preview loading ' + className} aria-busy="true" />;
-  if (p.text !== undefined) return <pre className={'preview text ' + className}>{p.text}</pre>;
+  if (p.text !== undefined) return <pre className={'preview text ' + className} aria-hidden="true">{p.text}</pre>;
   return <div className={'preview ' + className}><img src={p.url} alt={path.split(/[\\/]/).pop()} loading="lazy" /></div>;
 }

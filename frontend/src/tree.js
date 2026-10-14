@@ -164,17 +164,23 @@ export function applyStrategy(sel, groups, key, prefer = [], sep = '/') {
       loose(g).forEach(f => sel.add(f.id));
       n++;
     }
-    return n;
+    return [n, 0];
   }
   const pick = STRATEGIES[key][1];
+  const byDate = key === 'oldest' || key === 'newest';
+  // equal dates (or equal path lengths) are common after a copy: a second rule decides, and is reported
+  const tie = byDate ? (a, b) => a.path.length - b.path.length : (a, b) => a.mtime - b.mtime;
+  let ties = 0;
   for (const g of groups) {
     const files = loose(g);
     if (files.length < 2) { files.forEach(f => sel.delete(f.id)); continue; }
-    const best = [...files].sort((a, b) => (rankOf(a.path, prefer, sep) - rankOf(b.path, prefer, sep)) || pick(a, b))[0];
+    const rank = (a, b) => (rankOf(a.path, prefer, sep) - rankOf(b.path, prefer, sep)) || pick(a, b);
+    const [best, next] = [...files].sort((a, b) => rank(a, b) || tie(a, b));
+    if (rank(best, next) === 0) ties++;
     keepOnly(sel, g, new Set([best.id]));
     n++;
   }
-  return n;
+  return [n, ties];
 }
 
 /* Effect of a selection change: files and bytes added/removed. */
@@ -193,4 +199,11 @@ export function toCsv(groups, selected) {
     rows.push([g.id, g.hash, g.size, f.path, f.chain ? 'yes' : 'no', new Date(f.mtime * 1000).toISOString(), selected.has(f.id) ? 'yes' : 'no']);
   }
   return rows.map(r => r.map(q).join(',')).join('\r\n');
+}
+
+/* Longest folder prefix shared by every path (cut at a separator, never inside a name). */
+export function commonDir(paths, sep) {
+  let pre = paths.length > 1 ? paths[0].slice(0, paths[0].lastIndexOf(sep) + 1) : '';
+  for (const p of paths) while (pre && !p.startsWith(pre)) pre = pre.slice(0, pre.lastIndexOf(sep, pre.length - 2) + 1);
+  return pre.length > 3 ? pre : '';            // a bare drive root ("C:\", "/") is not worth a line
 }
