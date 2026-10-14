@@ -87,7 +87,7 @@ The interface is in English.
 
 Download `DupFinder-windows.zip` or `DupFinder-macos.zip` from the [Releases](../../releases) page. The builds are
 not signed: on macOS right-click the app → Open the first time; on Windows SmartScreen may ask to confirm.
-Releases are built by GitHub Actions (`.github/workflows/release.yml`) when a `v*` tag is pushed.
+What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 To build it yourself:
 
@@ -134,6 +134,14 @@ python -m unittest                 # tests
 - Backend: `dupfinder/` (Python standard library; pywebview, Pillow and send2trash are optional).
   `api.py` holds the API, used both by the HTTP server (browser mode) and by the pywebview bridge (desktop app).
 - Frontend: `frontend/` (React 19 + Vite). `npm run build` writes to `dupfinder/web/`.
+
+### Releases
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat: …`, `fix: …`,
+`feat!: …` or `BREAKING CHANGE:` for breaking changes). On every merge to `main`,
+[release-please](https://github.com/googleapis/release-please) updates a **Release PR** with the next version and the
+`CHANGELOG.md` entries; merging that PR tags the version, publishes the GitHub release and the workflow attaches the
+Windows and macOS builds. Squash-merging PRs works well: the PR title becomes the commit message.
 
 ## Known limits
 

@@ -75,6 +75,12 @@ Frontend (`frontend/`, React 19 + Vite, JSX): `App.jsx` (views, scan polling, se
 
 Tests: `tests/test_scanner.py` (base class `Isolated` redirects caches, catalog, session and quarantine to a temp folder — new tests must use it), `tests/test_features.py` (arc_keep, quarantine, session, hash cache, inventory, similar folders, catalog, extraction incl. 7z/zip slip/disk full/no space, similar images, watcher, routes), `tests/test_server.py`.
 
+## Git and releases
+Commit messages use **Conventional Commits** (`feat:`, `fix:`, `docs:`, `ci:`…): release-please reads them.
+`.github/workflows/release.yml`: on every push to `main` release-please updates the Release PR (`CHANGELOG.md`, version in
+`pyproject.toml` + `frontend/package.json`, config in `release-please-config.json` / `.release-please-manifest.json`);
+merging it creates tag + release, then Windows/macOS builds are attached. Never edit the version or CHANGELOG by hand.
+
 ## Tests done (repeat after changes)
 - `python -m unittest`: 30 tests (Windows, Python 3.15, 7-Zip, Pillow).
 - Interface in browser mode with Chrome DevTools on a demo folder: scan, preview, extraction (5 of 6 skipped, archive to quarantine), similar folders, inventory, similar images, catalog (archive, search, restore elsewhere, verify), quarantine restore, watcher, "archived" strategy + arc_keep deletion; no console errors.
