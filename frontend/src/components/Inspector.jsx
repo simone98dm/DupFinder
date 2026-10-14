@@ -1,6 +1,6 @@
 import { useContext } from 'react';
 import { Copy, Shield, Tick } from './Icons.jsx';
-import { Copies, TreeCtx } from './Tree.jsx';
+import { TreeCtx } from './Tree.jsx';
 import Preview from './Preview.jsx';
 import { fmtNum, fmtSize } from '../format.js';
 import { loose, statusOf } from '../tree.js';
@@ -26,10 +26,10 @@ export default function Inspector({ g, toast }) {
       <div className="panel insp">
         <div className="insp-head">
           <div style={{ minWidth: 0 }}>
-            <h3>Group details</h3>
+            <h2 className="insp-title">Group details</h2>
             <span className="mono ellip" title={name}>{name}</span>
           </div>
-          <span className="badge emerald"><Tick size={12} />100% identical</span>
+          <span className="badge emerald"><Tick size={12} />Identical content</span>
         </div>
 
         {disk[0] && <Preview id={disk[0].id} path={disk[0].path} className="insp-preview" />}
@@ -46,12 +46,11 @@ export default function Inspector({ g, toast }) {
           </div>
         </div>
 
-        <div className="stats">
-          <Stat label="Copies on disk" value={disk.length} sub={<span className="emerald">{disk.length - sel} kept</span>} />
-          <Stat label="Copies in archives" value={g.files.length - disk.length} sub="read-only" cls="violet" />
-          <Stat label="To delete" value={sel} sub={`-${fmtSize(g.size * sel)}`} cls="crimson" />
-          <Stat label="Space freed" value={`+${fmtSize(g.size * sel)}`} sub="if deleted" cls="emerald" />
-        </div>
+        <p className="insp-counts">
+          <span><b>{fmtNum(disk.length)}</b> on disk, <b className="emerald">{fmtNum(disk.length - sel)}</b> kept</span>
+          {g.files.length > disk.length && <span className="violet"><b>{fmtNum(g.files.length - disk.length)}</b> in archives (read-only)</span>}
+          {sel > 0 && <span><b className="crimson">{fmtNum(sel)}</b> to delete, <b className="emerald">{fmtSize(g.size * sel)}</b> freed</span>}
+        </p>
 
         {cls === 'arc'
           ? <div className="guard arc"><Shield size={16} /><div><strong>Kept only inside an archive:</strong> deletion goes ahead only if the archive is still exactly the one scanned.</div></div>
@@ -60,20 +59,6 @@ export default function Inspector({ g, toast }) {
           : <div className="guard"><Shield size={16} /><div><strong>Copy protection active:</strong> at least one copy on disk always stays. Copies inside archives are never touched.</div></div>}
       </div>
 
-      <div className="panel insp-copies">
-        <div className="label-caps muted">Copies</div>
-        <Copies g={g} />
-      </div>
     </aside>
-  );
-}
-
-function Stat({ label, value, sub, cls = '' }) {
-  return (
-    <div className={'stat ' + cls}>
-      <div>{label}</div>
-      <div className="stat-v">{value}</div>
-      <div className="stat-s">{sub}</div>
-    </div>
   );
 }

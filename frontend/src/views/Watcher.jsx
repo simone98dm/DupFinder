@@ -43,7 +43,7 @@ export default function Watcher({ watch, onChange, toast }) {
       </section>
 
       <section className="panel">
-        <h3 className="panel-title">Events</h3>
+        <h2 className="panel-title">Events</h2>
         {events.length === 0 ? <p className="muted">No file checked yet.</p> : (
           <table className="tbl">
             <thead><tr><th>Time</th><th>File</th><th>Result</th><th /></tr></thead>

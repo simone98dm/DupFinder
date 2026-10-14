@@ -43,7 +43,7 @@ export default function Inventory({ res, toast }) {
 
       <div className="grid-2">
         <section className="panel">
-          <h3 className="panel-title">Space by type</h3>
+          <h2 className="panel-title">Space by type</h2>
           <div className="bars">
             {cats.map(([c, [n, b]]) => (
               <Bar key={c} label={c} value={b} max={inv.bytes} sub={`${fmtNum(n)} files`} cls={CATS.find(x => x[0] === c)?.[1] || 'muted'} />
@@ -59,7 +59,7 @@ export default function Inventory({ res, toast }) {
         </section>
 
         <section className="panel">
-          <h3 className="panel-title">Space by year of last change</h3>
+          <h2 className="panel-title">Space by year of last change</h2>
           <div className="years" role="list">
             {years.map(([y, n, b]) => (
               <div key={y} className="year" role="listitem" title={`${y}: ${fmtNum(n)} files, ${fmtSize(b)}`}>
@@ -73,7 +73,7 @@ export default function Inventory({ res, toast }) {
       </div>
 
       <section className="panel">
-        <h3 className="panel-title">Space by folder</h3>
+        <h2 className="panel-title">Space by folder</h2>
         <FolderTree folders={inv.folders} reveal={reveal} />
       </section>
 

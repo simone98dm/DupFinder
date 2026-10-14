@@ -25,7 +25,7 @@ from .inventory import Inventory, dir_of, similar_folders
 from .utils import (
     SEVENZIP, Cancelled, StreamHasher, _ExactReader, _parse_7z_time, _send2trash,
     archive_kind, describe_os_error, hdd_drive_letters, is_rotational, move_file,
-    normalize_roots, remove_file,
+    long_path, normalize_roots, remove_file,
 )
 
 # archive cache file: a module attribute so the tests can redirect it
@@ -917,8 +917,23 @@ class Scanner:
         elif mode == "quarantine":
             rel = quarantine.stored_rel(path)
             dest = config.QUARANTINE_ROOT / stamp / rel
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            move_file(path, str(dest))
+            session = config.QUARANTINE_ROOT / stamp
+            try:
+                os.makedirs(long_path(dest.parent), exist_ok=True)
+                move_file(path, str(dest))
+            except OSError as e:
+                d = dest.parent              # drop the empty folders created for this file
+                while str(d).startswith(str(session)):
+                    try:
+                        os.rmdir(long_path(d))
+                    except OSError:
+                        break
+                    d = d.parent
+                if isinstance(e, FileNotFoundError) and os.path.exists(path):
+                    # the source is still there: the destination failed (often a path over 260 chars)
+                    raise OSError(f"Not moved: the quarantine path is too long or unreachable "
+                                  f"({len(str(dest))} characters)") from e
+                raise
             return rel
         else:
             remove_file(path)

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, saveText } from './api.js';
-import { fmtNum, fmtSize, nGroups } from './format.js';
+import { fmtDate, fmtNum, fmtSize, nGroups, plural } from './format.js';
 import {
   allowAllDisk, applyStrategy, buildTree, deleteDir, diffSelection, keepDir, keepOnly, loose, STRATEGIES, toCsv,
 } from './tree.js';
@@ -12,6 +12,7 @@ import Tree, { TreeCtx } from './components/Tree.jsx';
 import Inspector from './components/Inspector.jsx';
 import DeleteDialog from './components/DeleteDialog.jsx';
 import ExtractDialog from './components/ExtractDialog.jsx';
+import AboutDialog from './components/AboutDialog.jsx';
 import { lines } from './components/Job.jsx';
 import { Alert, Check, Search, Trash } from './components/Icons.jsx';
 import Inventory from './views/Inventory.jsx';
@@ -22,8 +23,8 @@ import Quarantine from './views/Quarantine.jsx';
 import Watcher from './views/Watcher.jsx';
 
 const INTRO = {
-  dedup: <>Found by <strong>CONTENT</strong>, never by name: same size → quick hash (first and last 64 KB) → full BLAKE2b.
-    Files inside archives (ZIP/7z/RAR) are only reported; an archive can be extracted to get rid of the copies it holds.</>,
+  dedup: <>Files with identical content, whatever their names. Copies inside ZIP, 7z and RAR archives are shown but never deleted:
+    extract an archive to get rid of the copies it holds.</>,
   folders: <>Folders whose files are, wholly or mostly, also in another folder: typically old backup copies that can go in one step.</>,
   images: <>Images that look the same even if resized or recompressed (64-bit difference hash). Unlike duplicates, they are <strong>not identical</strong>.</>,
   inventory: <>What the scanned folders contain: file types, years, space per folder, the largest and the oldest files.</>,
@@ -51,6 +52,7 @@ export default function App() {
   const [expand, setExpand] = useState({ mode: '', v: 0, budget: { n: 0 } });
   const [del, setDel] = useState(null);             // delete dialog: { ids, bytes, paths, similar, done }
   const [extractArc, setExtractArc] = useState(null);
+  const [about, setAbout] = useState(false);
   const [watch, setWatch] = useState({ folders: [], enabled: false, events: [], seq: 0 });
   const [watchSeen, setWatchSeen] = useState(0);
   const [toastMsg, setToastMsg] = useState(null);
@@ -172,6 +174,11 @@ export default function App() {
 
   // Selection rules work on a copy of the Set: the result is computed right away, then saved.
   const change = fn => { const s = new Set(selected); const out = fn(s); setSelected(s); return out; };
+  // Bulk changes rewrite many groups at once: the toast offers the previous selection back.
+  const undoable = (msg, ms = 8000) => {
+    const prev = selected;
+    toast(<>{msg}<button className="btn text sm" onClick={() => { setSelected(prev); toast('Selection restored.'); }}>Undo</button></>, ms);
+  };
   const act = {
     toggle: (id, on) => change(s => (on ? s.add(id) : s.delete(id))),
     keepOnly: id => change(s => keepOnly(s, fileById.get(id).g, new Set([id]))),
@@ -180,11 +187,14 @@ export default function App() {
     extract: path => setExtractArc(path),
     keepDir: prefix => {
       const n = change(s => keepDir(s, groups, prefix, sep));
-      toast(n ? `${nGroups(n)} updated: kept the copies in this folder.` : 'No group has copies both here and elsewhere.');
+      if (n) undoable(`${nGroups(n)} now keep the copy in this folder; the other copies are marked for deletion.`);
+      else toast('No group has copies both here and elsewhere.');
     },
     deleteDir: (prefix, direct = false) => {
       const [n, skipped] = change(s => deleteDir(s, groups, prefix, sep, arcOk, direct));
-      toast(`${nGroups(n)} updated.` + (skipped ? ` ${nGroups(skipped)} skipped because all their copies on disk are in this folder.` : ''), 4000);
+      const why = skipped ? ` ${nGroups(skipped)} left alone: every disk copy is in this folder.` : '';
+      if (n) undoable(`Copies in this folder marked for deletion in ${nGroups(n)}.` + why);
+      else toast('Nothing to mark here.' + why, 5000);
     },
   };
 
@@ -203,8 +213,10 @@ export default function App() {
   function runStrategy() {
     if (!strategy) { toast('Choose a rule first.'); return; }
     if (strategy === 'archived' && !arcOk) setArcKeep(true);
-    const n = change(s => applyStrategy(s, groups, strategy, preferList, sep));
-    toast(`Selection applied to ${nGroups(n)}. Review it before deleting.`);
+    const [n, ties] = change(s => applyStrategy(s, groups, strategy, preferList, sep));
+    const how = strategy === 'oldest' || strategy === 'newest' ? 'the same date: kept the shortest path' : 'paths of the same length: kept the oldest';
+    undoable(`Rule applied to ${nGroups(n)}. Nothing is deleted until you confirm.`
+      + (ties ? ` ${nGroups(ties)} had copies with ${how}.` : ''), ties ? 12000 : 8000);
   }
   function savePrefer(v) {
     setPrefer(v);
@@ -222,10 +234,17 @@ export default function App() {
     setRes(r => ({ ...r, groups: r.groups.map(g => ({ ...g, files: g.files.filter(f => !d.has(f.id)) })).filter(g => g.files.length > 1) }));
     setSelected(prev => new Set([...prev].filter(id => !d.has(id))));
   }
-  const openDelete = () => setDel({
-    ids: [...selected], bytes: selBytes, similar: false, done: onDeleted,
-    paths: [...selected].map(id => fileById.get(id)?.f.path).filter(Boolean),
-  });
+  const openDelete = () => {
+    const touched = new Map();                 // groups with something selected, in selection order
+    for (const id of selected) { const e = fileById.get(id); if (e) touched.set(e.g.id, e.g); }
+    setDel({
+      ids: [...selected], bytes: selBytes, similar: false, done: onDeleted,
+      paths: [...selected].map(id => fileById.get(id)?.f.path).filter(Boolean),
+      groups: [...touched.values()].map(g => ({
+        keep: g.files.filter(f => !selected.has(f.id)), del: g.files.filter(f => selected.has(f.id)),
+      })),
+    });
+  };
   const openDeleteImages = (ids, bytes, paths, done) => setDel({ ids, bytes, paths, similar: true, done });
 
   if (fatal) return <div className="fatal">{fatal}</div>;
@@ -243,7 +262,7 @@ export default function App() {
     <TreeCtx.Provider value={{ selected, focus, act, expand, arcSep, arcOk }}>
       <div className="shell">
         <Sidebar cfg={cfg} view={view} setView={setView} counts={counts} running={running}
-          onScan={startScan} onCancel={cancelScan} onElevate={elevate} />
+          onScan={startScan} onCancel={cancelScan} onElevate={elevate} onAbout={() => setAbout(true)} />
 
         <div className="workspace">
           <header className="topbar">
@@ -252,18 +271,11 @@ export default function App() {
               <input type="search" id="filter" placeholder="Filter duplicates by name or path…" value={filter}
                 onChange={e => { setFilter(e.target.value); setView('dedup'); }} disabled={!res} aria-label="Filter the results" />
             </div>
-            <div className="top-pills">
-              {res && <span className="pill mono"><b>{fmtNum(res.files_seen)}</b> files examined</span>}
-              {res?.cache_hits > 0 && <span className="pill mono" title="Hashes reused from earlier scans (files not changed)"><b>{fmtNum(res.cache_hits)}</b> from cache</span>}
-              <span className="pill"><i className={'ping' + (running ? '' : ' idle')} />
-                <span>Engine: <span className="mono emerald">BLAKE2b</span> {running ? '(scanning…)' : '(64 KB quick + full)'}</span></span>
-              {cfg.admin && <span className="pill amber">Administrator</span>}
-            </div>
+            {cfg.admin && <div className="top-pills"><span className="pill amber">Administrator</span></div>}
           </header>
 
           <main className="canvas">
             <div className="page-head">
-              <div className="crumbs"><span>{nav.crumb}</span><span>/</span><span>{nav.title.toUpperCase()}</span></div>
               <div className="title-row">
                 <h1>{nav.title}</h1>
                 {view === 'dedup' && res && !running && <button className="btn ghost sm" onClick={() => setShowScan(v => !v)}>{showScan ? 'Hide settings' : 'Scan settings'}</button>}
@@ -274,7 +286,7 @@ export default function App() {
             {stale && <div className="banner amber" role="status">Files were extracted or moved: the results may no longer match the disk.
               <button className="btn ghost sm" onClick={startScan} disabled={running}>Scan again</button></div>}
             {res && !stale && res.finished && Date.now() / 1000 - res.finished > 86400 && view === 'dedup' &&
-              <div className="banner">These results come from a scan of {new Date(res.finished * 1000).toLocaleString('en-GB')}: scan again if files changed since.</div>}
+              <div className="banner">These results come from a scan of {fmtDate(res.finished)}: scan again if files changed since.</div>}
 
             {view === 'dedup' && <>
               {(showScan || !res || running) && <ScanPanel cfg={cfg} value={form} onChange={setForm} running={running} onScan={startScan} onCancel={cancelScan} />}
@@ -297,9 +309,8 @@ export default function App() {
                     </select>
                     <button className={'btn ghost sm' + (showRules ? ' on' : '')} onClick={() => setShowRules(v => !v)} aria-expanded={showRules}>
                       Preferred folders{preferList.length ? ` (${preferList.length})` : ''}</button>
-                    <button className="btn primary sm" onClick={runStrategy}>Apply</button>
-                    {preview && preview.add + preview.rem > 0 && <span className="small muted" title="Effect of Apply on the current selection">
-                      → <span className="crimson">+{fmtNum(preview.add)}</span> / <span className="emerald">−{fmtNum(preview.rem)}</span> files ({preview.addB >= preview.remB ? '+' : '−'}{fmtSize(Math.abs(preview.addB - preview.remB))})</span>}
+                    <button className="btn primary sm" onClick={runStrategy} disabled={!!preview && preview.add + preview.rem === 0}
+                      title={preview && preview.add + preview.rem === 0 ? 'The selection already follows this rule' : undefined}>Apply</button>
                   </div>
                   <div className="tool-group">
                     <label className="check small" title="A copy inside an archive that has not changed since the scan is enough to keep: the disk copies can all go">
@@ -319,6 +330,12 @@ export default function App() {
                   <span><i className="sw emerald" />Kept</span>
                   <span><i className="sw crimson" />To delete</span>
                   <span><i className="sw violet" />In archive (read-only)</span>
+                  {preview && <span className="apply-preview" title="What Apply changes in the current selection">
+                      {preview.add + preview.rem === 0 ? 'Apply changes nothing' : <>Apply: {preview.add > 0 && <span className="crimson">{plural(preview.add, 'more file')} to delete</span>}
+                        {preview.add > 0 && preview.rem > 0 && ', '}
+                        {preview.rem > 0 && <span className="emerald">{plural(preview.rem, 'file')} kept again</span>}
+                        {' '}({preview.addB === preview.remB ? 'same space to free' : preview.addB > preview.remB ? `${fmtSize(preview.addB - preview.remB)} more to free` : `${fmtSize(preview.remB - preview.addB)} less to free`})</>}</span>}
+                  <span className="keys" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> move · <kbd>→</kbd><kbd>←</kbd> open/close · <kbd>Del</kbd> mark for deletion</span>
                 </div>
                 <div className="split">
                   <Tree root={root} empty={groups.length === 0} />
@@ -350,7 +367,7 @@ export default function App() {
                     : 'Active rule: at least one copy of every group always stays on disk.'}</span>
               </div>
               <div className="actionbar-right">
-                <button className="btn text" disabled={!selected.size} onClick={() => setSelected(new Set())}>Deselect all</button>
+                <button className="btn text" disabled={!selected.size} onClick={() => { undoable('Selection cleared.'); setSelected(new Set()); }}>Deselect all</button>
                 <button className="btn danger" disabled={!selected.size || fullGroups > 0} onClick={openDelete}>
                   <Trash size={16} />Delete {selected.size === 1 ? '1 selected file' : `${fmtNum(selected.size)} selected files`}…</button>
               </div>
@@ -359,9 +376,10 @@ export default function App() {
         </div>
       </div>
 
-      {del && <DeleteDialog cfg={cfg} ids={del.ids} bytes={del.bytes} paths={del.paths} similar={del.similar} arcKeep={arcOk && !del.similar}
-        onClose={() => setDel(null)} onDeleted={del.done} toast={toast} onElevate={elevate} />}
+      {del && <DeleteDialog cfg={cfg} ids={del.ids} bytes={del.bytes} paths={del.paths} groups={del.groups} sep={sep} similar={del.similar} arcKeep={arcOk && !del.similar}
+        onClose={() => setDel(null)} onDeleted={del.done} toast={toast} onElevate={elevate} onOpenQuarantine={() => setView('quarantine')} />}
       {extractArc && <ExtractDialog cfg={cfg} archive={extractArc} onClose={() => setExtractArc(null)} onChanged={() => setStale(true)} />}
+      {about && <AboutDialog cfg={cfg} onClose={() => setAbout(false)} />}
       <div className={'toast' + (toastMsg ? ' show' : '')} role="status">{toastMsg}</div>
     </TreeCtx.Provider>
   );

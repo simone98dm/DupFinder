@@ -35,7 +35,7 @@ export default function Catalog({ cfg, toast }) {
       </div>}
 
       <section className="panel">
-        <h3 className="panel-title">New incremental archive</h3>
+        <h2 className="panel-title">New incremental archive</h2>
         <p className="hint">Only files whose content is not in the catalog yet go into the new zip (duplicates are stored once).
           The zip is read back and checked before being recorded. The original files are not touched:
           to free space, scan them afterwards with "Copies in archives count as kept".</p>
@@ -68,7 +68,7 @@ export default function Catalog({ cfg, toast }) {
 
       <section className="panel">
         <div className="panel-head">
-          <h3 className="panel-title">Archives</h3>
+          <h2 className="panel-title">Archives</h2>
           <button className="btn ghost sm" disabled={ver.running || !sum?.archives.length} onClick={() => ver.start({}).catch(e => toast(e.message))}>Verify all</button>
         </div>
         <JobProgress st={ver.st} onCancel={ver.cancel} />
@@ -119,7 +119,7 @@ function SearchRestore({ toast }) {
 
   return (
     <section className="panel">
-      <h3 className="panel-title">Search and restore</h3>
+      <h2 className="panel-title">Search and restore</h2>
       <div className="search wide">
         <Search size={14} />
         <input type="search" placeholder="Part of the original path or name, or a BLAKE2b hash…" value={q} onChange={e => setQ(e.target.value)} aria-label="Search the catalog" />

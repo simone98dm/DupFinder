@@ -1,17 +1,17 @@
-import { Chart, Copy, Database, Eye, FolderFill, Logo, Shield, Trash } from './Icons.jsx';
+import { Chart, Copy, Database, Eye, FolderFill, Logo, Shield, Trash, Info } from './Icons.jsx';
 import { fmtNum } from '../format.js';
 
 export const NAV = [
-  { id: 'dedup', label: 'Deduplication', icon: Logo, title: 'Content deduplication', crumb: 'BLAKE2B ENGINE' },
-  { id: 'folders', label: 'Similar folders', icon: FolderFill, title: 'Similar folders', crumb: 'BACKUP COPIES' },
-  { id: 'images', label: 'Similar images', icon: Copy, title: 'Similar images', crumb: 'PERCEPTUAL HASH' },
-  { id: 'inventory', label: 'Inventory', icon: Chart, title: 'Inventory', crumb: 'STATISTICS' },
-  { id: 'catalog', label: 'Catalog & archives', icon: Database, title: 'Catalog and incremental archives', crumb: 'SQLITE CATALOG' },
-  { id: 'quarantine', label: 'Quarantine', icon: Trash, title: 'Quarantine', crumb: 'RESTORE' },
-  { id: 'watch', label: 'Inbox watcher', icon: Eye, title: 'Inbox watcher', crumb: 'WATCHER' },
+  { id: 'dedup', label: 'Deduplication', icon: Logo, title: 'Content deduplication' },
+  { id: 'folders', label: 'Similar folders', icon: FolderFill, title: 'Similar folders' },
+  { id: 'images', label: 'Similar images', icon: Copy, title: 'Similar images' },
+  { id: 'inventory', label: 'Inventory', icon: Chart, title: 'Inventory' },
+  { id: 'catalog', label: 'Catalog & archives', icon: Database, title: 'Catalog and incremental archives' },
+  { id: 'quarantine', label: 'Quarantine', icon: Trash, title: 'Quarantine' },
+  { id: 'watch', label: 'Inbox watcher', icon: Eye, title: 'Inbox watcher' },
 ];
 
-export default function Sidebar({ cfg, view, setView, counts, running, onScan, onCancel, onElevate }) {
+export default function Sidebar({ cfg, view, setView, counts, running, onScan, onCancel, onElevate, onAbout }) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -26,6 +26,7 @@ export default function Sidebar({ cfg, view, setView, counts, running, onScan, o
         <div className="label-caps nav-title">Tools</div>
         {NAV.map(({ id, label, icon: Icon }) => (
           <button key={id} className={'nav-item' + (view === id ? ' active' : '')} aria-current={view === id ? 'page' : undefined}
+            title={label} aria-label={counts[id] > 0 ? `${label} (${counts[id]})` : label}
             onClick={() => setView(id)}>
             <Icon size={16} />
             <span className="grow">{label}</span>
@@ -33,6 +34,13 @@ export default function Sidebar({ cfg, view, setView, counts, running, onScan, o
           </button>
         ))}
       </nav>
+
+      <div className="nav nav-bottom">
+        <button className="nav-item" onClick={onAbout} title="About DupFinder" aria-label="About DupFinder" aria-haspopup="dialog">
+          <Info size={16} />
+          <span className="grow">About</span>
+        </button>
+      </div>
 
       <div className="sidebar-foot">
         <div className="health">
